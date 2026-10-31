@@ -14,7 +14,7 @@ ENVIRONMENT = "main"
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
-    .apt_install("curl", "git", "ca-certificates", "procps", "iproute2", "xz-utils")
+    .apt_install("curl", "git", "ca-certificates", "procps", "iproute2", "xz-utils", "openssh-client")
     # Tailscale: runs userspace-networking inside the sandbox (no TUN device needed).
     .run_commands("curl -fsSL https://tailscale.com/install.sh | sh")
     # Hermes: headless install, no setup wizard, no bundled Chromium.
