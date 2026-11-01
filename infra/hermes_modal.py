@@ -174,6 +174,8 @@ hermes config set model.provider bedrock
 hermes config set model.default "${HERMES_BEDROCK_MODEL:-global.anthropic.claude-sonnet-5-5}"
 hermes config set bedrock.region "${AWS_REGION:-us-east-1}"
 hermes config set gateway.unmanaged_idle_exit_seconds 0
+# Phone-first HITL: give the owner 30 min to notice an approval before it fails closed (deny).
+hermes config set approvals.timeout 1800
 
 # 3) Gateway in the foreground under a restart loop (touch /tmp/no-restart to stop it for rotation).
 #    A snapshot restore carries the previous container's runtime files; no gateway runs yet, so clear them.
@@ -395,10 +397,12 @@ def status() -> int:
 
 
 def probe() -> int:
-    """Run protocol_probe.py from a throwaway tailnet node against the live API (wire-format capture)."""
+    """Run a probe script (default protocol_probe.py) from a throwaway tailnet node against the live API."""
     import base64
     import pathlib
-    script = pathlib.Path(__file__).with_name("protocol_probe.py").read_bytes()
+    here = pathlib.Path(__file__).parent
+    name = sys.argv[2] if len(sys.argv) > 2 else "protocol_probe.py"
+    files = {n: (here / n).read_bytes() for n in {"protocol_probe.py", name}}  # helpers + the probe itself
     sb = _ts_sandbox(_app(), extra="--outbound-http-proxy-listen=127.0.0.1:1055", serve_http=False,
                      secret_names=(TS_SECRET, "kuntal-hermes-api"))
     try:
@@ -406,9 +410,9 @@ def probe() -> int:
         if rc:
             print(f"probe join failed: {out[-300:]}")
             return 1
-        b64 = base64.b64encode(script).decode()
-        _run(sb, f"echo {b64} | base64 -d > /tmp/protocol_probe.py")
-        proc = sb.exec("bash", "-lc", f"python3 /tmp/protocol_probe.py https://{HOST}.tail59b530.ts.net")
+        for n, data in files.items():
+            sb.filesystem.write_bytes(data, f"/tmp/{n}")
+        proc = sb.exec("bash", "-lc", f"cd /tmp && python3 -u {name} https://{HOST}.tail59b530.ts.net")
         for line in proc.stdout:  # stream so long agent turns show progress
             print(line, end="")
         err = proc.stderr.read()

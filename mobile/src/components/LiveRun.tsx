@@ -8,11 +8,17 @@ import { mono, useTheme } from './theme';
 export type Activity = { key: string; tool: string; preview?: string; state: 'running' | 'done' | 'error'; duration?: number };
 
 const CHOICE_LABEL: Record<string, string> = { once: 'Allow once', session: 'Allow for this task', always: 'Always allow', deny: 'Deny' };
+const CHOICE_ORDER = ['once', 'session', 'always', 'deny'];
+/** Server default `approvals.timeout`; the deployment raises it to 1800 s. Unanswered = denied. */
+const DEFAULT_WAIT_S = 1800;
 
 export function ApprovalCard({ ev, onChoose }: { ev: RunEvent; onChoose: (choice: string) => Promise<void> }) {
   const t = useTheme();
   const [busy, setBusy] = useState<string | null>(null);
-  const choices = ev.choices?.length ? ev.choices : ['once', 'deny'];
+  const raw = ev.choices?.length ? ev.choices : ['once', 'deny'];
+  const choices = [...raw].sort((a, b) => (CHOICE_ORDER.indexOf(a) + 99) % 99 - (CHOICE_ORDER.indexOf(b) + 99) % 99);
+  const waitS = Number(ev.timeout_s ?? DEFAULT_WAIT_S);
+  const deadline = ev.timestamp ? new Date((Number(ev.timestamp) + waitS) * 1000) : null;
   return (
     <View style={[styles.card, { backgroundColor: t.card, borderColor: t.warn }]}>
       <Text style={{ color: t.warn, fontWeight: '700' }}>Approval needed</Text>
@@ -22,6 +28,9 @@ export function ApprovalCard({ ev, onChoose }: { ev: RunEvent; onChoose: (choice
           <Text selectable style={[mono, { color: t.text, fontSize: 12.5 }]}>{String(ev.command)}</Text>
         </View>
       )}
+      <Text style={{ color: t.muted, fontSize: 12 }}>
+        Hermes waits{deadline ? ` until ${deadline.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ` ${Math.round(waitS / 60)} min`}; no answer means deny.
+      </Text>
       <View style={styles.choices}>
         {choices.map((c) => (
           <Pressable

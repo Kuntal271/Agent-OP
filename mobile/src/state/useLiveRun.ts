@@ -97,11 +97,11 @@ export function useLiveRun(sessionId: string, onFinished: () => void) {
     } else if (name === 'approval.request') {
       setLive((l) => ({ ...l, approval: ev }));
       updateRun(sessionId, { status: 'waiting_for_approval' });
-    } else if (name === 'approval.responded') {
+    } else if (name === 'approval.responded' || name === 'approval.settled') {
       setLive((l) => ({ ...l, approval: null }));
       updateRun(sessionId, { status: 'running' });
-    } else if (name.startsWith('clarify') && name.endsWith('request')) setLive((l) => ({ ...l, clarify: ev }));
-    else if (name.startsWith('clarify') && name.endsWith('responded')) setLive((l) => ({ ...l, clarify: null }));
+    } else if (name === 'clarify.request') setLive((l) => ({ ...l, clarify: ev }));
+    else if (name === 'clarify.settled' || name === 'clarify.responded') setLive((l) => ({ ...l, clarify: null }));
     else if (name.startsWith('run.')) {
       const status = name.slice(4);
       if (isTerminal(status)) finalize(status, status === 'completed' ? undefined : String(ev.error ?? ev.output ?? status));

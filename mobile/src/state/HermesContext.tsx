@@ -82,8 +82,12 @@ export function HermesProvider({ children }: { children: ReactNode }) {
         if (isTerminal(r.status) || r.sessionId === openRef.current) continue;
         try {
           const st = await client.getRun(r.runId);
-          if (st.status !== r.status) {
-            updateRun(r.sessionId, { status: st.status, error: st.error, unread: isTerminal(st.status) || st.status === 'waiting_for_approval' });
+          // A run parked on a human decision exposes pending_controls (the reliable signal).
+          const pcs = st.pending_controls;
+          const waiting = !isTerminal(st.status) && (Array.isArray(pcs) ? pcs.length > 0 : !!pcs && Object.keys(pcs).length > 0);
+          const status = waiting ? 'waiting_for_approval' : st.status;
+          if (status !== r.status) {
+            updateRun(r.sessionId, { status, error: st.error, unread: isTerminal(status) || waiting });
           }
         } catch (e) {
           // Run status is retained only briefly after it ends: a 404 means it finished a while ago.
