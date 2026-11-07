@@ -38,7 +38,7 @@ export default function ServerStatus() {
           {!online && <Banner tone="danger" text="This phone can’t reach the server. Open Tailscale and check it’s connected." />}
           {!!error && online && <Banner tone="warn" text={error} />}
 
-          <SectionHeader title="Server" />
+          <SectionHeader flush title="Server" />
           <Card>
             <Row title="Status" value={data?.status ?? '—'} />
             <Row title="Hermes version" value={data?.version ?? '—'} />
@@ -47,7 +47,7 @@ export default function ServerStatus() {
 
           {checks.length > 0 && (
             <>
-              <SectionHeader title="Readiness checks" />
+              <SectionHeader flush title="Readiness checks" />
               <Card>
                 {checks.map(([name, c], i) => (
                   <Row key={name} icon={c.status === 'ok' ? 'checkmark-circle-outline' : 'alert-circle-outline'} title={name.replace(/_/g, ' ')} value={String(c.status)} last={i === checks.length - 1} />
@@ -57,7 +57,7 @@ export default function ServerStatus() {
           )}
           {platforms.length > 0 && (
             <>
-              <SectionHeader title="Connected platforms" />
+              <SectionHeader flush title="Connected platforms" />
               <Card>
                 {platforms.map(([name, p], i) => <Row key={name} icon="link-outline" title={name} value={String(p.state ?? 'unknown')} last={i === platforms.length - 1} />)}
               </Card>

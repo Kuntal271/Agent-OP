@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { useMemo } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ColorValue } from 'react-native';
 
 import { useTheme } from '@/components/theme';
@@ -15,6 +16,7 @@ const tab = (title: string, active: IconName, idle: IconName) => ({
 
 export default function TabsLayout() {
   const t = useTheme();
+  const insets = useSafeAreaInsets();
   const { runs } = useHermes();
   // Badge = tasks that need a human: waiting for approval, failed, or finished unseen.
   const attention = useMemo(
@@ -28,8 +30,9 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: t.accent,
         tabBarInactiveTintColor: t.muted,
-        tabBarStyle: { backgroundColor: t.card, borderTopColor: t.border },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarStyle: { backgroundColor: t.card, borderTopColor: t.border, height: 68 + insets.bottom, paddingTop: 4, paddingBottom: 4 + insets.bottom },
+        tabBarLabelStyle: { fontSize: 11, lineHeight: 14, fontWeight: '600' },
+        tabBarItemStyle: { paddingVertical: 2 },
         sceneStyle: { backgroundColor: t.bg },
       }}>
       <Tabs.Screen name="index" options={{ ...tab('Tasks', 'chatbubbles', 'chatbubbles-outline'), tabBarBadge: attention > 0 ? attention : undefined }} />

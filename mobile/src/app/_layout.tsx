@@ -1,8 +1,8 @@
 import * as Notifications from 'expo-notifications';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useIsDark, useTheme } from '@/components/theme';
@@ -55,17 +55,22 @@ function Shell() {
 function Effects({ signedIn }: { signedIn: boolean }) {
   const router = useRouter();
   const { settings } = useSettings();
-  const response = Notifications.useLastNotificationResponse();
   const handled = useRef<string | null>(null);
 
+  // Tapping a notification opens its task. Works for cold starts (last response) and while running.
   useEffect(() => {
-    if (!signedIn || !response) return;
-    const key = response.notification.request.identifier;
-    const sid = response.notification.request.content.data?.sessionId;
-    if (handled.current === key || typeof sid !== 'string') return;
-    handled.current = key;
-    router.push({ pathname: '/session/[id]', params: { id: sid } });
-  }, [response, signedIn, router]);
+    if (!signedIn || Platform.OS === 'web') return;
+    const open = (resp: Notifications.NotificationResponse | null) => {
+      const key = resp?.notification.request.identifier;
+      const sid = resp?.notification.request.content.data?.sessionId;
+      if (!key || handled.current === key || typeof sid !== 'string') return;
+      handled.current = key;
+      router.push({ pathname: '/session/[id]', params: { id: sid } });
+    };
+    Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});
+    const sub = Notifications.addNotificationResponseReceivedListener(open);
+    return () => sub.remove();
+  }, [signedIn, router]);
 
   useEffect(() => {
     ensureChannel().catch(() => {});
@@ -99,3 +104,18 @@ const styles = StyleSheet.create({
   lock: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
   lockIcon: { width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center' },
 });
+
+/** Last line of defence: a crash anywhere shows this instead of a blank screen. Sits outside the providers, so no context. */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const dark = useColorScheme() === 'dark';
+  const fg = dark ? '#F1F5F9' : '#0F172A';
+  return (
+    <View style={[styles.center, { backgroundColor: dark ? '#0A0C12' : '#F4F5FA', padding: 28, gap: 12 }]}>
+      <Text style={{ color: fg, fontSize: 20, fontWeight: '800' }}>Something went wrong</Text>
+      <Text style={{ color: dark ? '#94A3B8' : '#64748B', textAlign: 'center' }} numberOfLines={6}>{error.message}</Text>
+      <Pressable onPress={retry} accessibilityRole="button" style={{ backgroundColor: '#4F46E5', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}>
+        <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
+      </Pressable>
+    </View>
+  );
+}

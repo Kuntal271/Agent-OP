@@ -64,7 +64,7 @@ function Option({ label, sub, selected, onPress }: { label: string; sub?: string
   const t = useTheme();
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected }}
-      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 4, opacity: pressed ? 0.6 : 1 })}>
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 10, borderRadius: radius.md, backgroundColor: selected ? t.accentSoft : 'transparent', opacity: pressed ? 0.6 : 1 })}>
       <View style={{ flex: 1 }}>
         <Text style={{ color: t.text, fontSize: 15, fontWeight: selected ? '700' : '500' }}>{label}</Text>
         {!!sub && <Text style={{ color: t.muted, fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>{sub}</Text>}

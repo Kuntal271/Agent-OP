@@ -52,7 +52,7 @@ export const Markdown = memo(function Markdown({ children, color }: { children: 
     bullet_list: { marginBottom: 6 },
     ordered_list: { marginBottom: 6 },
     list_item: { marginBottom: 2 },
-    table: { borderColor: t.border, borderWidth: 1, borderRadius: radius.sm, marginVertical: 6 },
+    table: { borderColor: t.border, borderTopWidth: 1, borderLeftWidth: 1, borderRightWidth: 1, marginVertical: 6 },
     th: { padding: 6, fontWeight: '700' },
     td: { padding: 6 },
     tr: { borderBottomColor: t.border, borderBottomWidth: 1 },

@@ -108,7 +108,8 @@ def main() -> int:
         apk = "/work/mobile/android/app/build/outputs/apk/release/app-release.apk"
         bt = f"{SDK}/build-tools/37.0.0"
         rc, info = _run(sb, f"ls -la {apk} && sha256sum {apk} && {bt}/apksigner verify --print-certs {apk} | head -4 && "
-                            f"{bt}/aapt2 dump badging {apk} | grep -E \"^(package|sdkVersion|targetSdkVersion|application-label|native-code)\"")
+                            f"{bt}/aapt2 dump badging {apk} | grep -E \"^(package|sdkVersion|targetSdkVersion|application-label|native-code)\" && "
+                            f"echo '--- merged permissions' && {bt}/aapt2 dump permissions {apk} | sort")
         print(f"[verify] rc={rc}\n{info}")
         if rc:
             return 1

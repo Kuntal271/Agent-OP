@@ -46,6 +46,12 @@ export function jobScheduleText(j: Job): string {
   return j.schedule?.display ?? j.schedule?.expr ?? (j.schedule?.minutes ? `every ${j.schedule.minutes}m` : '');
 }
 
+/** Plain-language schedule for lists ("Weekdays at 09:30"); custom schedules show their raw text. */
+export function humanSchedule(j: Job): string {
+  const d = parseSchedule(j);
+  return d.freq === 'custom' ? jobScheduleText(j) || 'No schedule' : describeSchedule(d);
+}
+
 /** Rebuild an editable draft from a stored job. Anything unrecognised becomes a custom schedule. */
 export function parseSchedule(j?: Job | null): ScheduleDraft {
   if (!j) return { ...DEFAULT_DRAFT };

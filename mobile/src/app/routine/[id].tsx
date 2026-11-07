@@ -135,11 +135,14 @@ export default function RoutineEditor() {
           <TextInput value={draft.custom} onChangeText={(custom) => set({ custom })} autoCapitalize="none" autoCorrect={false} placeholder="every 30m  ·  0 9 * * 1-5  ·  2026-12-01T09:00" placeholderTextColor={t.muted}
             style={[...field, mono]} accessibilityLabel="Custom schedule" />
         )}
-        <Text style={{ color: t.accent, fontSize: 13, fontWeight: '600' }}>{describeSchedule(draft)}{schedule && draft.freq !== 'custom' && draft.freq !== 'interval' ? `  ·  ${schedule}` : ''}</Text>
+        <Text style={{ color: t.accent, fontSize: 13, fontWeight: '600' }}>{describeSchedule(draft)}{schedule && draft.freq !== 'custom' && draft.freq !== 'interval' ? <Text style={[mono, { color: t.muted, fontWeight: '400' }]}>{`   ${schedule}`}</Text> : null}</Text>
 
         {!isNew && job && (
           <View style={[styles.status, { backgroundColor: t.card, borderColor: t.border }]}>
-            <Text style={{ color: t.text, fontWeight: '600' }}>{paused ? 'Paused' : next ? `Next run ${relativeWhen(next)}` : 'Active'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Chip icon={paused ? 'pause' : 'play'} label={paused ? 'Paused' : 'Active'} tone={paused ? 'warn' : 'ok'} />
+              {!paused && !!next && <Text style={{ color: t.muted, fontSize: 13 }}>Next run {relativeWhen(next)}</Text>}
+            </View>
             {!!job.last_error && <Text style={{ color: t.danger, fontSize: 12 }}>Last error: {job.last_error}</Text>}
             <View style={styles.chips}>
               <Button title="Run now" icon="play" variant="secondary" compact onPress={() => act('run')} loading={busy === 'run'} />

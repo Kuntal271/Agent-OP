@@ -3,7 +3,7 @@
     "name": "Hermes",
     "slug": "hermes-mobile",
     "scheme": "hermes-remote",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -16,26 +16,67 @@
     },
     "android": {
       "package": "com.kuntal271.hermes",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#4F46E5",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#4F46E5",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180
+        }
+      ],
       "expo-status-bar",
       "expo-secure-store",
       "expo-sqlite",
       "expo-background-task",
-      "expo-speech-recognition",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-notifications",
+        {
+          "color": "#4F46E5"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Hermes attaches the photos you choose to your tasks.",
+          "cameraPermission": "Hermes takes a photo when you ask it to, to attach to your task."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Hermes uses Face ID to unlock the app."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Hermes listens while you hold dictation on, so you can speak a task instead of typing it.",
+          "speechRecognitionPermission": "Hermes turns your speech into text for your task.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ]
     ]
   }
 }

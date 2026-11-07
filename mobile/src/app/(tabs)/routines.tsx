@@ -7,7 +7,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { radius, useTheme } from '@/components/theme';
 import { Banner, Chip, EmptyState, Icon, Skeleton } from '@/components/ui';
 import { haptic } from '@/lib/haptics';
-import { jobDate, jobScheduleText, relativeWhen } from '@/lib/jobs';
+import { humanSchedule, jobDate, relativeWhen } from '@/lib/jobs';
 import type { Job } from '@/lib/types';
 import { useHermes } from '@/state/HermesContext';
 import { useAsync } from '@/state/useAsync';
@@ -52,13 +52,15 @@ export default function RoutinesScreen() {
                 style={({ pressed }) => [styles.card, { backgroundColor: t.card, borderColor: t.border, opacity: pressed ? 0.75 : 1 }]}>
                 <View style={{ flex: 1, gap: 4 }}>
                   <Text numberOfLines={1} style={{ color: t.text, fontSize: 16, fontWeight: '700' }}>{j.name || 'Untitled routine'}</Text>
-                  <Text numberOfLines={1} style={{ color: t.muted, fontSize: 13 }}>{jobScheduleText(j) || 'No schedule'}</Text>
+                  <Text numberOfLines={1} style={{ color: t.muted, fontSize: 13 }}>{humanSchedule(j)}</Text>
                   <View style={styles.meta}>
                     {on ? <Chip icon="play" label={next ? `Next ${relativeWhen(next)}` : 'Active'} tone="ok" /> : <Chip icon="pause" label="Paused" tone="warn" />}
-                    {!!last && <Chip icon={j.last_status === 'error' || j.last_error ? 'alert-circle' : 'checkmark-circle'} label={`Ran ${relativeWhen(last)}`} tone={j.last_status === 'error' || j.last_error ? 'danger' : undefined} />}
+                    {last
+                      ? <Chip icon={j.last_status === 'error' || j.last_error ? 'alert-circle' : 'checkmark-circle'} label={`${j.last_status === 'error' || j.last_error ? 'Failed' : 'Ran'} ${relativeWhen(last)}`} tone={j.last_status === 'error' || j.last_error ? 'danger' : undefined} />
+                      : <Chip icon="time-outline" label="Never run" />}
                   </View>
                 </View>
-                <Switch value={on} onValueChange={(v) => { haptic.tap(); toggle(j, v); }} trackColor={{ true: t.accent, false: t.border }} accessibilityLabel={on ? 'Pause routine' : 'Resume routine'} />
+                <Switch value={on} onValueChange={(v) => { haptic.tap(); toggle(j, v); }} trackColor={{ true: t.accent, false: t.track }} thumbColor="#FFFFFF" ios_backgroundColor={t.track} accessibilityLabel={on ? 'Pause routine' : 'Resume routine'} />
               </Pressable>
             );
           }}

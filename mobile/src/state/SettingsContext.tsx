@@ -1,9 +1,9 @@
 /** User preferences, persisted locally (never contains the API key — that lives in the keystore). */
 
-import Storage from 'expo-sqlite/kv-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { setHapticsEnabled } from '@/lib/haptics';
+import { kv } from '@/lib/storage';
 import type { ModelChoice } from '@/lib/types';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
@@ -49,7 +49,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let gone = false;
-    Storage.getItem(KEY)
+    kv.getItem(KEY)
       .then((raw) => {
         if (gone) return;
         if (raw) {
@@ -72,7 +72,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const commit = useCallback((next: Settings) => {
     setSettings(next);
-    Storage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+    kv.setItem(KEY, JSON.stringify(next)).catch(() => {});
   }, []);
 
   const update = useCallback((patch: Partial<Settings>) => commit({ ...settings, ...patch }), [commit, settings]);

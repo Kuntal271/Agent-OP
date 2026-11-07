@@ -23,7 +23,7 @@ export function ApprovalCard({ ev, onChoose }: { ev: RunEvent; onChoose: (choice
   const deadline = ev.timestamp ? new Date((Number(ev.timestamp) + waitS) * 1000) : null;
   return (
     <View style={[styles.card, { backgroundColor: t.card, borderColor: t.warn }]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Icon name="shield-checkmark" size={18} color={t.warn} /><Text style={{ color: t.warn, fontWeight: '700' }}>Approval needed</Text></View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Icon name="warning" size={18} color={t.warn} /><Text style={{ color: t.warn, fontWeight: '700' }}>Approval needed</Text></View>
       {!!ev.description && <Text style={{ color: t.text }}>{String(ev.description)}</Text>}
       {!!ev.command && (
         <View style={[styles.cmd, { backgroundColor: t.code }]}>
@@ -33,17 +33,26 @@ export function ApprovalCard({ ev, onChoose }: { ev: RunEvent; onChoose: (choice
       <Text style={{ color: t.muted, fontSize: 12 }}>
         Hermes waits{deadline ? ` until ${deadline.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ` ${Math.round(waitS / 60)} min`}; no answer means deny.
       </Text>
-      <View style={styles.choices}>
-        {choices.map((c) => (
-          <Pressable
-            key={c}
-            disabled={!!busy}
-            onPress={async () => { setBusy(c); if (c === 'deny') haptic.warning();
-              else haptic.success(); try { await onChoose(c); } finally { setBusy(null); } }}
-            style={({ pressed }) => [styles.choice, { borderColor: c === 'deny' ? t.danger : t.accent, opacity: pressed || (busy && busy !== c) ? 0.6 : 1 }]}>
-            {busy === c ? <ActivityIndicator size="small" /> : <Text style={{ color: c === 'deny' ? t.danger : t.accent, fontWeight: '600' }}>{CHOICE_LABEL[c] ?? c}</Text>}
-          </Pressable>
-        ))}
+      <View style={styles.stack}>
+        {choices.map((c) => {
+          const deny = c === 'deny';
+          const primary = c === 'once';
+          return (
+            <Pressable
+              key={c}
+              disabled={!!busy}
+              accessibilityRole="button"
+              accessibilityLabel={CHOICE_LABEL[c] ?? c}
+              onPress={async () => { setBusy(c); if (deny) haptic.warning(); else haptic.success(); try { await onChoose(c); } finally { setBusy(null); } }}
+              style={({ pressed }) => [
+                styles.bigChoice,
+                deny ? { backgroundColor: t.dangerSoft, borderColor: t.danger, marginTop: 6 } : primary ? { backgroundColor: t.accent, borderColor: t.accent } : { borderColor: t.accent },
+                { opacity: pressed || (busy && busy !== c) ? 0.6 : 1 },
+              ]}>
+              {busy === c ? <ActivityIndicator size="small" /> : <Text style={{ color: deny ? t.danger : primary ? t.accentText : t.accent, fontWeight: '700', fontSize: 15 }}>{CHOICE_LABEL[c] ?? c}</Text>}
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -108,6 +117,8 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 12, padding: 12, gap: 8 },
   cmd: { borderRadius: 8, padding: 10 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  stack: { gap: 8 },
+  bigChoice: { minHeight: 46, borderWidth: 1.5, borderRadius: 12, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
   choice: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, minWidth: 64, alignItems: 'center' },
   input: { flex: 1, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
   live: { borderRadius: 16, borderBottomLeftRadius: 4, paddingHorizontal: 14, paddingVertical: 10, borderWidth: StyleSheet.hairlineWidth, alignSelf: 'flex-start', maxWidth: '92%' },

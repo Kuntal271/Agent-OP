@@ -19,10 +19,12 @@ the context of the Desktop session that built it (2026-10-31). Read it fully bef
   - Hourly deployed function `scheduled_ensure`: heal if down, rotate at 20 h (Modal caps sandboxes at 24 h),
     backup snapshot every 6 h. State (`/root/.hermes`, `/var/lib/tailscale`) persists via filesystem snapshots.
   - Secrets: `kuntal-hermes-tailscale`, `kuntal-hermes-bedrock`, `kuntal-hermes-api` (values never in git).
-- **mobile/** — Expo SDK 58 app (`com.kuntal271.hermes`): tasks list with live run badges, chat over durable
-  `/v1/runs` (detach never stops a task; re-attach replays from `Last-Event-ID`), approvals, clarify,
-  steer, stop, scheduled jobs. tsc + eslint clean; Android bundle exports; the API client passed a live
-  test against this server. `infra/build_android.py` builds a sideloadable release APK in a Modal sandbox.
+- **mobile/** — Expo SDK 58 app (`com.kuntal271.hermes`, **v1.1.0**): Tasks · Routines · Skills · Usage · Settings
+  tabs; chat over durable `/v1/runs` (detach never stops a task; re-attach replays from `Last-Event-ID`) with
+  markdown, approvals, steer/stop, per-task model picker, photo attachments, voice dictation; routines CRUD;
+  app lock; local notifications. tsc + eslint clean, 7 unit-test groups, 17/17 live feature checks against this
+  server (see `docs/FEATURES.md` for what is verified and what is device-unverified).
+  `infra/build_android.py` builds a sideloadable release APK in a Modal sandbox.
 
 ## Hard rules for you
 1. **Never run `hermes_modal.py rotate|up|ensure|snapshot` or `modal deploy` from inside this sandbox** —
@@ -42,11 +44,15 @@ the context of the Desktop session that built it (2026-10-31). Read it fully bef
 - [ ] Rotate the Modal token (it was pasted in chat).
 
 ## Next engineering work (good tasks for you)
-- Push notifications when a run finishes while the app is closed: small notifier (poll runs or hook the
-  gateway) + Expo push token registration; needs an EAS development build (not Expo Go).
-- Exercise the manual approval path live (smart approval auto-approved the only test command) and harden
-  `ApprovalCard` / `respondApproval` against the real `approval.request` + `pending_controls` shapes.
-- App polish: markdown rendering, session rename, search, image attachments, an app icon.
+- **Run the app on the owner's phone and report what breaks.** The device-only features (camera, microphone
+  dictation, biometric lock, local notifications, read-aloud) are built and bundled but have never run on hardware;
+  `docs/FEATURES.md` lists them as 🟡. Fix what he reports; keep `tsc`, `expo lint`, `npm run test:unit` green.
+- Instant push notifications: needs a Firebase project from the owner (`google-services.json`) and a notifier
+  (poll `/v1/runs` or hook the gateway). Today: ~15-minute background check + local notification.
+- Dashboard-backed screens (Kanban, files, terminal, config/logs/MCP) — **only after the owner says yes** to
+  exposing the dashboard on the tailnet (see `docs/FEATURES.md`).
+- Tool-result rendering keeps whitespace on native but collapses it on web; check on device.
+- Hermes v0.22.5 `/v1/skills` bug is patched at boot (`infra/hermes_modal.py`); remove the patch when upstream fixes it.
 
 ## Where the details are
 - `README.md` (architecture + commands), `infra/hermes_modal.py` (all infra logic, comments explain the why),

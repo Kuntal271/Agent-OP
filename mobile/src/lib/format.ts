@@ -71,15 +71,22 @@ export function visibleMessages(messages: Message[]): Message[] {
 export function prettyModel(id?: string | null): string {
   if (!id) return 'Default';
   let s = id.split('/').pop() ?? id;
-  s = s.replace(/^(global|us|eu|apac)\./, '').replace(/^(anthropic|amazon|meta|mistral|cohere|deepseek|openai|google|qwen)\./, '');
+  s = s.replace(/^(global|us|eu|apac)\./, '');
+  // Anthropic/Amazon names are self-explanatory (Claude…, Nova…); other vendors keep their name ("DeepSeek R1").
+  const vendor = s.match(/^(meta|mistral|cohere|deepseek|openai|google|qwen)\./)?.[1];
+  s = s.replace(/^(anthropic|amazon|meta|mistral|cohere|deepseek|openai|google|qwen)\./, '');
+  const VENDOR_LABEL: Record<string, string> = { deepseek: 'DeepSeek', openai: 'OpenAI', qwen: 'Qwen', meta: '', mistral: 'Mistral', cohere: 'Cohere', google: 'Google' };
   s = s.replace(/-v\d+:\d+$/, '').replace(/-\d{8}$/, '');
+  s = s.replace(/([a-z]{2,})(\d)/gi, '$1-$2'); // llama4 -> llama-4, but r1 / v1 stay whole; runs after the version suffix is stripped
   const words: string[] = [];
   for (const tok of s.split(/[-_.]/)) {
     if (!tok) continue;
     const prev = words[words.length - 1];
     if (/^\d+$/.test(tok) && prev && /^\d+(\.\d+)*$/.test(prev)) words[words.length - 1] = `${prev}.${tok}`;
-    else words.push(/^\d+$/.test(tok) ? tok : tok.charAt(0).toUpperCase() + tok.slice(1));
+    else words.push(/^\d+$/.test(tok) ? tok : /^\d+b$/i.test(tok) ? tok.toUpperCase() : tok.charAt(0).toUpperCase() + tok.slice(1));
   }
+  if (vendor && VENDOR_LABEL[vendor]) words.unshift(VENDOR_LABEL[vendor]);
+  if (words[0]?.toLowerCase() === 'r1') words[0] = 'R1';
   return words.join(' ');
 }
 

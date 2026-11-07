@@ -7,7 +7,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from '@/lib/haptics';
-import { radius, useTheme } from './theme';
+import { radius, useIsDark, useTheme } from './theme';
 
 export type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type IconColor = React.ComponentProps<typeof Ionicons>['color'];
@@ -71,25 +71,26 @@ export function Chip({ label, icon, active, onPress, tone }: { label: string; ic
       <Text style={[styles.chipText, { color: fg }]} numberOfLines={1}>{label}</Text>
     </View>
   );
-  return onPress ? <Pressable onPress={() => { haptic.tap(); onPress(); }} accessibilityRole="button" accessibilityLabel={label}>{body}</Pressable> : body;
+  return onPress ? <Pressable hitSlop={6} onPress={() => { haptic.tap(); onPress(); }} accessibilityRole="button" accessibilityLabel={label}>{body}</Pressable> : body;
 }
 
-export function SectionHeader({ title, right }: { title: string; right?: ReactNode }) {
+/** `flush` drops the horizontal inset, for screens whose container already pads its content. */
+export function SectionHeader({ title, right, flush }: { title: string; right?: ReactNode; flush?: boolean }) {
   const t = useTheme();
   return (
-    <View style={styles.sectionHeader}>
+    <View style={[styles.sectionHeader, flush && { paddingHorizontal: 0 }]}>
       <Text style={[styles.sectionTitle, { color: t.muted }]}>{title.toUpperCase()}</Text>
       {right}
     </View>
   );
 }
 
-export function Banner({ tone = 'warn', text, action, onAction }: { tone?: 'warn' | 'danger' | 'ok' | 'info'; text: string; action?: string; onAction?: () => void }) {
+export function Banner({ tone = 'warn', text, action, onAction, rounded }: { tone?: 'warn' | 'danger' | 'ok' | 'info'; text: string; action?: string; onAction?: () => void; rounded?: boolean }) {
   const t = useTheme();
   const c = tone === 'danger' ? [t.dangerSoft, t.danger] : tone === 'ok' ? [t.okSoft, t.ok] : tone === 'info' ? [t.accentSoft, t.accent] : [t.warnSoft, t.warn];
   const icon: IconName = tone === 'ok' ? 'checkmark-circle' : tone === 'info' ? 'information-circle' : 'alert-circle';
   return (
-    <View style={[styles.banner, { backgroundColor: c[0] }]}>
+    <View style={[styles.banner, { backgroundColor: c[0] }, rounded && { borderRadius: radius.md }]}>
       <Ionicons name={icon} size={18} color={c[1]} />
       <Text style={{ color: c[1], flex: 1, fontSize: 13 }}>{text}</Text>
       {action && <Pressable onPress={onAction} accessibilityRole="button"><Text style={{ color: c[1], fontWeight: '700', fontSize: 13 }}>{action}</Text></Pressable>}
@@ -131,11 +132,12 @@ export function Skeleton({ rows = 5 }: { rows?: number }) {
 
 export function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
   const t = useTheme();
+  const dark = useIsDark();
   return (
     <View style={[styles.segment, { backgroundColor: t.surface }]}>
       {options.map((o) => (
         <Pressable key={o.value} onPress={() => { haptic.tap(); onChange(o.value); }} accessibilityRole="button" accessibilityState={{ selected: o.value === value }}
-          style={[styles.segItem, o.value === value && { backgroundColor: t.card }]}>
+          style={[styles.segItem, o.value === value && { backgroundColor: dark ? t.border : t.card }]}>
           <Text style={{ color: o.value === value ? t.text : t.muted, fontWeight: o.value === value ? '700' : '500', fontSize: 13 }}>{o.label}</Text>
         </Pressable>
       ))}
@@ -159,7 +161,7 @@ export function Row({ icon, title, subtitle, value, onPress, toggle, onToggle, d
         {!!subtitle && <Text style={{ color: t.muted, fontSize: 12, marginTop: 2 }}>{subtitle}</Text>}
       </View>
       {value !== undefined && <Text style={{ color: t.muted, fontSize: 14, maxWidth: 160 }} numberOfLines={1}>{value}</Text>}
-      {onToggle && <Switch value={!!toggle} onValueChange={(v) => { haptic.tap(); onToggle(v); }} trackColor={{ true: t.accent, false: t.border }} />}
+      {onToggle && <Switch value={!!toggle} onValueChange={(v) => { haptic.tap(); onToggle(v); }} trackColor={{ true: t.accent, false: t.track }} thumbColor="#FFFFFF" ios_backgroundColor={t.track} />}
       {onPress && !onToggle && <Ionicons name="chevron-forward" size={16} color={t.muted} />}
     </Pressable>
   );
@@ -237,7 +239,7 @@ const styles = StyleSheet.create({
   btnText: { fontSize: 15, fontWeight: '700' },
   iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   card: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.pill },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill },
   chipText: { fontSize: 12, fontWeight: '600', maxWidth: 160 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
   sectionTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6 },
@@ -254,7 +256,7 @@ const styles = StyleSheet.create({
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '82%', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingHorizontal: 16, paddingTop: 8 },
   grabber: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, marginBottom: 10 },
-  sheetTitle: { fontSize: 15, fontWeight: '700', marginBottom: 6, paddingHorizontal: 4 },
+  sheetTitle: { fontSize: 15, fontWeight: '700', marginBottom: 6, paddingHorizontal: 10 },
   action: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 4, minHeight: 50 },
   promptWrap: { flex: 1, justifyContent: 'center', padding: 24 },
   prompt: { borderRadius: radius.xl, padding: 18, gap: 14 },

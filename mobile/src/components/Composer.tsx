@@ -121,6 +121,7 @@ export function Composer({ onSend, onStop, onModelPress, modelLabel, active, ini
           placeholder={active ? 'Steer the running task…' : 'Message Hermes'}
           placeholderTextColor={t.muted}
           multiline
+          numberOfLines={1}
           accessibilityLabel="Message"
           style={[styles.input, { color: t.text, backgroundColor: t.bg, borderColor: t.border }]}
         />

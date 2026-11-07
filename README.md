@@ -46,25 +46,36 @@ Other tools: `protocol_probe.py` (captures the live API wire format), `hermes_mo
 
 ## mobile/ — the Hermes app (Expo SDK 58, iOS + Android)
 
-- **Tasks**: every Hermes session, with live badges (working / needs approval / failed / new result).
-- **Chat**: streamed replies and tool steps, approvals, clarifications, **Steer** and **Stop** while a task runs.
+Five tabs — **Tasks · Routines · Skills · Usage · Settings** — plus chat. Full status table with evidence:
+[`docs/FEATURES.md`](docs/FEATURES.md).
+
+- **Tasks**: every Hermes session, grouped (needs you / pinned / today …), searchable, filterable; rename, pin,
+  archive, delete, **branch**. Live badges (working / needs approval / failed / new result).
+- **Chat**: markdown (tables, code with copy), streamed replies and tool steps, approvals, **Steer** / **Stop**,
+  **per-task model picker**, **photo attachments**, **voice dictation**, read-aloud, retry, copy.
 - **Durable runs**: turns use `POST /v1/runs`; leaving the chat or backgrounding the app detaches without
   stopping the task, and re-attaching replays from the last seen event (`Last-Event-ID`) — no lost or duplicated output.
-- **Jobs**: scheduled jobs with Run now / Pause / Resume.
-- API key stored in the OS keystore (expo-secure-store); run bookkeeping in `expo-sqlite/kv-store`.
+- **Routines**: create / edit / pause / run-now / delete scheduled tasks with a friendly schedule picker (times are
+  in your timezone — the server boots with `timezone: Asia/Kolkata`).
+- **Skills**, **Usage** (tokens, cache hits, per-day and per-model), **Server status**.
+- **Security**: API key in the OS keystore; optional biometric/PIN **app lock**.
+- **Notifications**: local, from a ~15-minute background check (instant push needs Firebase — not set up).
+- Device-only features (camera, mic, biometrics, notifications) are built but **not yet run on a phone**.
 
 ```bash
 cd mobile
 npm install
-npx expo start            # scan the QR code with Expo Go (phone on the same Wi-Fi as this computer)
-npx tsc --noEmit && npx expo lint
+npx tsc --noEmit && npx expo lint && npm run test:unit
+npm run mock                       # offline mock Hermes (key: mock-key) for UI work
+npx expo start --web               # preview in a browser
 ```
 
-On the phone: Tailscale connected to the personal tailnet → open the app → Settings: server URL
-`https://kuntal-hermes.<tailnet>.ts.net` + the API key → **Test & save**.
+On the phone: Tailscale connected to the personal tailnet → open the app → paste the server URL
+`https://kuntal-hermes.<tailnet>.ts.net` and the API key (or open a `hermes-remote://connect?url=…&key=…` link) → **Connect**.
 
-`mobile/scripts/live-test.ts` exercises the app's real API client against the live server
-(bundle with esbuild, run via `infra/hermes_modal.py apptest <bundle.mjs>`).
+`mobile/scripts/live-test.ts` (streaming/detach) and `live-features.ts` (everything added in 1.1) exercise the app's
+real API client + helpers against the live server (bundle with esbuild, run via
+`infra/hermes_modal.py apptest <bundle.mjs>`).
 
 ## Security notes
 
@@ -75,6 +86,9 @@ On the phone: Tailscale connected to the personal tailnet → open the app → S
 
 ## Known limits / next
 
-- Push notifications when a task finishes while the app is closed (needs a small server-side notifier + an EAS dev build).
-- The approval card follows the documented `pending_controls` contract; smart approval auto-approved the
-  only command used in testing, so the manual-approval path has not yet been exercised live.
+- Instant push notifications (today: a ~15-minute background check + local notification). Needs a Firebase
+  project (`google-services.json`) and a small server-side notifier.
+- Dashboard-backed features (Kanban, files, terminal, config/logs/MCP) are not built; they need the Hermes
+  dashboard exposed on the tailnet — an owner decision, see `docs/FEATURES.md`.
+- The official Hermes Mobile app is a waitlist beta; this app is independent of it.
+- Hermes v0.22.5 bug worked around at boot: `/v1/skills` 500s (`include_editorial` kwarg). See `docs/FEATURES.md`.

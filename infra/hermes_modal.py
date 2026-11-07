@@ -176,6 +176,22 @@ hermes config set bedrock.region "${AWS_REGION:-us-east-1}"
 hermes config set gateway.unmanaged_idle_exit_seconds 0
 # Phone-first HITL: give the owner 30 min to notice an approval before it fails closed (deny).
 hermes config set approvals.timeout 1800
+# Routines ("every day at 08:00") must mean the owner's clock, not the sandbox's UTC.
+hermes config set timezone "${HERMES_TIMEZONE:-Asia/Kolkata}"
+
+# Upstream bug (Hermes v0.22.5): GET /v1/skills passes include_editorial= to find_all_skills(), which does not
+# accept it, so the endpoint 500s. Drop the kwarg only while skills_tool.py still lacks it; a fixed upstream is untouched.
+python3 - <<'PYSKILLS'
+import pathlib
+root = pathlib.Path("/root/.hermes/hermes-agent")
+api, skills = root / "gateway/platforms/api_server.py", root / "tools/skills_tool.py"
+bad = "skip_disabled=False, include_editorial=True"
+if api.exists() and skills.exists() and bad in api.read_text() and "include_editorial" not in skills.read_text():
+    api.write_text(api.read_text().replace(bad, "skip_disabled=False"))
+    print("patched: /v1/skills include_editorial kwarg removed")
+else:
+    print("skills patch not needed")
+PYSKILLS
 
 # 3) Gateway in the foreground under a restart loop (touch /tmp/no-restart to stop it for rotation).
 #    A snapshot restore carries the previous container's runtime files; no gateway runs yet, so clear them.

@@ -3,7 +3,7 @@
 import { prettyModel } from './format';
 import type { Session } from './types';
 
-export type DayBucket = { key: string; label: string; tokens: number; input: number; output: number; sessions: number };
+export type DayBucket = { key: string; label: string; day: number; tokens: number; input: number; output: number; sessions: number };
 export type ModelUsage = { model: string; label: string; tokens: number; sessions: number; cost: number };
 export type UsageSummary = {
   sessions: number; input: number; output: number; cacheRead: number; cacheWrite: number;
@@ -16,7 +16,7 @@ const when = (s: Session) => (s.last_active ?? s.started_at ?? 0) * 1000;
 const tok = (s: Session) => (s.input_tokens ?? 0) + (s.output_tokens ?? 0);
 
 /** rangeDays 0 = all time. The chart always shows the last `chartDays` days. */
-export function summarizeUsage(all: Session[], rangeDays: number, now = Date.now(), chartDays = 14): UsageSummary {
+export function summarizeUsage(all: Session[], rangeDays: number, now = Date.now(), chartDays = rangeDays === 7 ? 7 : 30): UsageSummary {
   const cutoff = rangeDays > 0 ? now - rangeDays * 86_400_000 : 0;
   const sessions = all.filter((s) => !s.is_internal_child && when(s) >= cutoff);
 
@@ -24,7 +24,7 @@ export function summarizeUsage(all: Session[], rangeDays: number, now = Date.now
   const index = new Map<string, DayBucket>();
   for (let i = chartDays - 1; i >= 0; i--) {
     const d = new Date(now - i * 86_400_000);
-    const b = { key: ymd(d), label: d.toLocaleDateString(undefined, { weekday: 'narrow' }), tokens: 0, input: 0, output: 0, sessions: 0 };
+    const b = { key: ymd(d), label: d.toLocaleDateString(undefined, { weekday: 'narrow' }), day: d.getDate(), tokens: 0, input: 0, output: 0, sessions: 0 };
     days.push(b);
     index.set(b.key, b);
   }

@@ -4,26 +4,12 @@ import { useState } from 'react';
 import { Alert, KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { mono, radius, useTheme } from '@/components/theme';
-import { Banner, Button, Card, Icon } from '@/components/ui';
+import { Banner, Button, Card, Icon, IconButton } from '@/components/ui';
 import { HermesClient, HermesError } from '@/lib/api';
+import { parsePasted } from '@/lib/connect';
 import { haptic } from '@/lib/haptics';
 import { DEFAULT_BASE_URL } from '@/lib/storage';
 import { useHermes } from '@/state/HermesContext';
-
-/** Accepts a raw key, a bare URL, or a `hermes-remote://connect?url=…&key=…` link. */
-function parsePasted(text: string): { url?: string; key?: string } {
-  const s = text.trim();
-  try {
-    const u = new URL(s);
-    const url = u.searchParams.get('url') ?? undefined;
-    const key = u.searchParams.get('key') ?? undefined;
-    if (url || key) return { url, key };
-    if (/^https?:$/.test(u.protocol)) return { url: `${u.protocol}//${u.host}` };
-  } catch {
-    /* not a URL */
-  }
-  return s && !/\s/.test(s) ? { key: s } : {};
-}
 
 export default function ConnectScreen() {
   const t = useTheme();
@@ -91,7 +77,7 @@ export default function ConnectScreen() {
 
         {!config && (
           <Card style={styles.steps}>
-            <Step n={1} text="Install Tailscale on this phone and sign in to the same account as your server." />
+            <Step n={1} text="Install Tailscale on this phone and sign in to the same account as your server." link="Get Tailscale" onLink={() => Linking.openURL('https://play.google.com/store/apps/details?id=com.tailscale.ipn')} />
             <Step n={2} text="Copy the server URL and API key (or the connect link) from your Mac." />
             <Step n={3} text="Tap Paste, then Connect." />
           </Card>
@@ -100,29 +86,30 @@ export default function ConnectScreen() {
         <Text style={[styles.label, { color: t.muted }]}>SERVER URL</Text>
         <TextInput style={field} value={baseUrl} onChangeText={setBaseUrl} autoCapitalize="none" autoCorrect={false} keyboardType="url" placeholder={DEFAULT_BASE_URL} placeholderTextColor={t.muted} accessibilityLabel="Server URL" />
         <Text style={[styles.label, { color: t.muted }]}>API KEY</Text>
-        <TextInput style={[...field, mono]} value={apiKey} onChangeText={setApiKey} autoCapitalize="none" autoCorrect={false} secureTextEntry={!show} placeholder="API_SERVER_KEY" placeholderTextColor={t.muted} accessibilityLabel="API key" />
+        <View>
+          <TextInput style={[...field, apiKey ? mono : null, { paddingRight: 48 }]} value={apiKey} onChangeText={setApiKey} autoCapitalize="none" autoCorrect={false} secureTextEntry={!show} placeholder="Paste your API key" placeholderTextColor={t.muted} accessibilityLabel="API key" />
+          <View style={styles.eye}><IconButton name={show ? 'eye-off-outline' : 'eye-outline'} label={show ? 'Hide key' : 'Show key'} color={t.muted} onPress={() => setShow((s) => !s)} /></View>
+        </View>
         <View style={styles.actions}>
-          <Button title="Paste" icon="clipboard-outline" variant="secondary" compact onPress={paste} />
-          <Button title={show ? 'Hide key' : 'Show key'} icon={show ? 'eye-off-outline' : 'eye-outline'} variant="ghost" compact onPress={() => setShow((s) => !s)} />
+          <Button title="Paste from clipboard" icon="clipboard-outline" variant="secondary" compact onPress={paste} />
         </View>
         <Text style={{ color: t.muted, fontSize: 12 }}>The key is stored in this phone’s secure keystore. The server only answers while Tailscale is connected.</Text>
 
-        <Button title="Connect" icon="link" onPress={testAndSave} loading={busy} style={{ marginTop: 12 }} />
+        <Button title="Connect" icon="link" onPress={testAndSave} loading={busy} disabled={!apiKey.trim() || !baseUrl.trim()} style={{ marginTop: 12 }} />
         {status && <Banner tone={status.ok ? 'ok' : 'danger'} text={status.text} />}
 
         {config && <Button title="Forget this server" icon="log-out-outline" variant="danger" onPress={forget} style={{ marginTop: 24 }} />}
-        {!config && <Button title="Get Tailscale" variant="ghost" icon="open-outline" onPress={() => Linking.openURL('https://play.google.com/store/apps/details?id=com.tailscale.ipn')} />}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-function Step({ n, text }: { n: number; text: string }) {
+function Step({ n, text, link, onLink }: { n: number; text: string; link?: string; onLink?: () => void }) {
   const t = useTheme();
   return (
     <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
       <View style={[styles.num, { backgroundColor: t.accentSoft }]}><Text style={{ color: t.accent, fontWeight: '800', fontSize: 12 }}>{n}</Text></View>
-      <Text style={{ color: t.text, flex: 1, lineHeight: 20 }}>{text}</Text>
+      <Text style={{ color: t.text, flex: 1, lineHeight: 20 }}>{text}{link ? <Text onPress={onLink} accessibilityRole="link" style={{ color: t.accent, fontWeight: '700' }}> {link}</Text> : null}</Text>
     </View>
   );
 }
@@ -136,4 +123,5 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5, marginTop: 10 },
   input: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15 },
   actions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  eye: { position: 'absolute', right: 4, top: 0, bottom: 0, justifyContent: 'center' },
 });

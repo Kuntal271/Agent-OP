@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { RunBadge } from '@/components/RunBadge';
@@ -8,6 +8,8 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { radius, useTheme } from '@/components/theme';
 import { ActionSheet, Banner, Chip, EmptyState, Icon, PromptModal, Skeleton, type SheetAction } from '@/components/ui';
 import { groupSessions, relativeTime, sessionTitle, sourceLabel } from '@/lib/format';
+import { isAuthError } from '@/lib/connect';
+import { attempt } from '@/lib/guard';
 import { haptic } from '@/lib/haptics';
 import type { TrackedRun } from '@/lib/storage';
 import { isTerminal, type Session } from '@/lib/types';
@@ -96,14 +98,14 @@ export default function TasksScreen() {
   const del = (s: Session) =>
     Alert.alert('Delete this task?', sessionTitle(s), [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => client?.deleteSession(s.id).then(() => { forgetRun(s.id); load(); }) },
+      { text: 'Delete', style: 'destructive', onPress: async () => { await attempt('Could not delete', async () => { await client!.deleteSession(s.id); forgetRun(s.id); }); load(); } },
     ]);
 
   const actions: SheetAction[] = menuFor
     ? [
         { label: 'Rename', icon: 'pencil-outline', onPress: () => setRenaming(menuFor) },
-        { label: menuFor.pinned ? 'Unpin' : 'Pin to top', icon: 'pin-outline', onPress: () => client?.patchSession(menuFor.id, { pinned: !menuFor.pinned }).then(load) },
-        { label: menuFor.archived ? 'Unarchive' : 'Archive', icon: menuFor.archived ? 'arrow-undo-outline' : 'archive-outline', onPress: () => client?.patchSession(menuFor.id, { archived: !menuFor.archived }).then(() => { forgetRun(menuFor.id); load(); }) },
+        { label: menuFor.pinned ? 'Unpin' : 'Pin to top', icon: 'pin-outline', onPress: async () => { await attempt('Could not update', () => client!.patchSession(menuFor.id, { pinned: !menuFor.pinned })); load(); } },
+        { label: menuFor.archived ? 'Unarchive' : 'Archive', icon: menuFor.archived ? 'arrow-undo-outline' : 'archive-outline', onPress: async () => { await attempt('Could not update', async () => { await client!.patchSession(menuFor.id, { archived: !menuFor.archived }); forgetRun(menuFor.id); }); load(); } },
         { label: 'Delete', icon: 'trash-outline', onPress: () => del(menuFor), destructive: true },
       ]
     : [];
@@ -119,9 +121,12 @@ export default function TasksScreen() {
         <TextInput value={query} onChangeText={setQuery} placeholder="Search tasks" placeholderTextColor={t.muted} style={{ flex: 1, color: t.text, fontSize: 15, paddingVertical: 10 }} accessibilityLabel="Search tasks" />
         {!!query && <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear search"><Icon name="close-circle" size={18} color={t.muted} /></Pressable>}
       </View>
-      <View style={styles.filters}>
-        {FILTERS.map((f) => <Chip key={f.key} label={f.label} active={filter === f.key} onPress={() => setFilter(f.key)} />)}
-      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.filters}>
+        {FILTERS.map((f) => {
+          const urgent = f.key === 'attention' && attentionCount > 0;
+          return <Chip key={f.key} label={urgent ? `${f.label} · ${attentionCount}` : f.label} tone={urgent && filter !== f.key ? 'warn' : undefined} active={filter === f.key} onPress={() => setFilter(f.key)} />;
+        })}
+      </ScrollView>
 
       {sessions === null && !error ? <Skeleton /> : (
         <SectionList
@@ -133,7 +138,8 @@ export default function TasksScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={t.accent} />}
           contentContainerStyle={{ paddingBottom: 110 + insets.bottom, flexGrow: 1 }}
           ListEmptyComponent={
-            error ? <EmptyState icon="cloud-offline-outline" title="Can’t load tasks" body={error} action="Retry" onAction={load} />
+            error && isAuthError(error) ? <EmptyState icon="key-outline" title="This phone’s key was rejected" body="The server is reachable, but the API key is wrong or was rotated. Paste the new one." action="Update key" onAction={() => router.push('/connect')} />
+            : error ? <EmptyState icon="cloud-offline-outline" title="Can’t load tasks" body={error} action="Retry" onAction={load} />
             : query || filter !== 'all' ? <EmptyState icon="search-outline" title="Nothing here" body="No tasks match this filter." />
             : (
               <View>
@@ -159,7 +165,7 @@ export default function TasksScreen() {
 
       <ActionSheet visible={!!menuFor} onClose={() => setMenuFor(null)} title={menuFor ? sessionTitle(menuFor) : undefined} actions={actions} />
       <PromptModal visible={!!renaming} title="Rename task" initial={renaming ? sessionTitle(renaming) : ''} onCancel={() => setRenaming(null)}
-        onSubmit={(title) => { const s = renaming; setRenaming(null); if (s) client?.patchSession(s.id, { title }).then(load); }} />
+        onSubmit={async (title) => { const s = renaming; setRenaming(null); if (s) { await attempt('Could not rename', () => client!.patchSession(s.id, { title })); load(); } }} />
     </View>
   );
 }
@@ -173,8 +179,8 @@ const TaskRow = memo(function TaskRow({ s, run, onPress, onLongPress }: { s: Ses
       style={({ pressed }) => [styles.row, { backgroundColor: t.card, borderColor: t.border, opacity: pressed ? 0.75 : 1 }]}>
       <View style={{ flex: 1, gap: 3 }}>
         <View style={styles.titleLine}>
-          {s.pinned && <Icon name="pin" size={13} color={t.accent} />}
           <Text numberOfLines={1} style={{ color: t.text, fontSize: 15.5, fontWeight: unread ? '800' : '600', flex: 1 }}>{sessionTitle(s)}</Text>
+          {s.pinned && <Icon name="pin" size={14} color={t.accent} />}
           <Text style={{ color: t.muted, fontSize: 12 }}>{relativeTime(s.last_active ?? s.started_at)}</Text>
         </View>
         {!!s.preview && s.preview !== s.title && <Text numberOfLines={1} style={{ color: t.muted, fontSize: 13.5 }}>{s.preview}</Text>}
@@ -189,8 +195,8 @@ const TaskRow = memo(function TaskRow({ s, run, onPress, onLongPress }: { s: Ses
 
 const styles = StyleSheet.create({
   search: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, paddingHorizontal: 12, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  group: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 6 },
+  filters: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
+  group: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
   row: { marginHorizontal: 16, marginBottom: 8, padding: 14, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
   titleLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   metaLine: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 4 },

@@ -11,6 +11,7 @@ import { useTheme } from '@/components/theme';
 import { ActionSheet, Banner, Button, EmptyState, Icon, IconButton, PromptModal, type SheetAction } from '@/components/ui';
 import type { Attachment } from '@/lib/attachments';
 import { messageText, prettyModel, sessionTitle, sourceLabel, compactNumber, visibleMessages } from '@/lib/format';
+import { attempt } from '@/lib/guard';
 import { haptic } from '@/lib/haptics';
 import { newIdempotencyKey } from '@/lib/storage';
 import type { ChatInput, Message, Session } from '@/lib/types';
@@ -161,7 +162,7 @@ export default function SessionScreen() {
   const remove = () =>
     Alert.alert('Delete this task?', 'The conversation is removed from the server too.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => { await client?.deleteSession(sessionId).catch(() => {}); router.back(); } },
+      { text: 'Delete', style: 'destructive', onPress: async () => { if (await attempt('Could not delete', async () => { await client!.deleteSession(sessionId); return true; })) router.back(); } },
     ]);
 
   const details = () =>
@@ -181,10 +182,10 @@ export default function SessionScreen() {
     { label: 'Rename', icon: 'pencil-outline', onPress: () => setRenaming(true) },
     { label: 'Change model', icon: 'hardware-chip-outline', onPress: () => setPicker(true), hidden: foreign },
     { label: 'Branch into a new task', icon: 'git-branch-outline', onPress: branch },
-    { label: session?.pinned ? 'Unpin' : 'Pin to top', icon: 'pin-outline', onPress: async () => { const s = await client?.patchSession(sessionId, { pinned: !session?.pinned }); if (s) setSession(s); } },
+    { label: session?.pinned ? 'Unpin' : 'Pin to top', icon: 'pin-outline', onPress: async () => { const s = await attempt('Could not update', () => client!.patchSession(sessionId, { pinned: !session?.pinned })); if (s) setSession(s); } },
     { label: 'Copy conversation', icon: 'copy-outline', onPress: copyTranscript },
     { label: 'Task details', icon: 'information-circle-outline', onPress: details },
-    { label: 'Archive', icon: 'archive-outline', onPress: async () => { await client?.patchSession(sessionId, { archived: true }); router.back(); } },
+    { label: 'Archive', icon: 'archive-outline', onPress: async () => { if (await attempt('Could not archive', () => client!.patchSession(sessionId, { archived: true }))) router.back(); } },
     { label: 'Delete', icon: 'trash-outline', onPress: remove, destructive: true },
   ];
 
@@ -262,7 +263,7 @@ export default function SessionScreen() {
       <ActionSheet visible={!!picked} onClose={() => setPicked(null)} actions={msgActions} />
       <ModelPicker visible={picker} onClose={() => setPicker(false)} value={chosen} serverModel={session?.model} onSelect={(c) => setSessionModel(sessionId, c)} />
       <PromptModal visible={renaming} title="Rename task" initial={session ? sessionTitle(session) : ''} onCancel={() => setRenaming(false)}
-        onSubmit={async (title) => { setRenaming(false); const s = await client?.patchSession(sessionId, { title }).catch(() => null); if (s) setSession(s); }} />
+        onSubmit={async (title) => { setRenaming(false); const s = await attempt('Could not rename', () => client!.patchSession(sessionId, { title })); if (s) setSession(s); }} />
     </KeyboardAvoidingView>
   );
 }

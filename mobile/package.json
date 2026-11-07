@@ -20,6 +20,7 @@
     "expo-secure-store": "~58.0.2",
     "expo-speech": "~58.0.3",
     "expo-speech-recognition": "^58.0.1",
+    "expo-splash-screen": "~58.0.13",
     "expo-sqlite": "~58.0.14",
     "expo-status-bar": "~58.0.4",
     "expo-system-ui": "~58.0.7",
@@ -43,7 +44,9 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "test:unit": "npx --yes esbuild@0.25 scripts/unit-test.ts --bundle --platform=node --format=esm --log-level=error --outfile=dist/unit-test.mjs && node dist/unit-test.mjs",
+    "mock": "node scripts/mock-server.mjs 8787"
   },
   "private": true
 }

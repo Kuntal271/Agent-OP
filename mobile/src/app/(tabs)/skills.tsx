@@ -89,7 +89,7 @@ export default function SkillsScreen() {
 
 const styles = StyleSheet.create({
   search: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 16, marginBottom: 4, paddingHorizontal: 12, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth },
-  group: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 6 },
+  group: { fontSize: 12, fontWeight: '700', letterSpacing: 0.6, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 16, marginBottom: 8, padding: 12, borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth },
   badge: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 });
