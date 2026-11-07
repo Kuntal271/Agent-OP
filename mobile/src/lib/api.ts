@@ -1,7 +1,21 @@
 /** Hermes API Server client. Pure TS on the global WinterCG fetch (expo/fetch on device). */
 
 import { SseParser } from './sse';
-import { isTerminalEvent, type Job, type Message, type PendingControl, type RunEvent, type RunStatus, type Session } from './types';
+import {
+  isTerminalEvent,
+  type ChatInput,
+  type HealthDetail,
+  type Job,
+  type JobInput,
+  type Message,
+  type ModelChoice,
+  type ModelOptions,
+  type PendingControl,
+  type RunEvent,
+  type RunStatus,
+  type Session,
+  type Skill,
+} from './types';
 
 export type Config = { baseUrl: string; apiKey: string };
 
@@ -62,6 +76,9 @@ export class HermesClient {
     return json as T;
   }
 
+  healthDetailed = () => this.request<HealthDetail>('GET', '/health/detailed', undefined, { timeoutMs: 15_000 });
+  modelOptions = () => this.request<ModelOptions>('GET', '/api/model/options', undefined, { timeoutMs: 20_000 });
+  listSkills = async () => (await this.request<{ data: Skill[] }>('GET', '/v1/skills')).data ?? [];
   health = () => this.request<{ status: string; version?: string }>('GET', '/health', undefined, { timeoutMs: 10_000 });
 
   // --- sessions -----------------------------------------------------------------------
@@ -71,6 +88,8 @@ export class HermesClient {
     (await this.request<{ session: Session }>('POST', '/api/sessions', title ? { title } : {})).session;
   patchSession = async (id: string, fields: Partial<Pick<Session, 'title' | 'pinned' | 'archived'>>) =>
     (await this.request<{ session: Session }>('PATCH', `/api/sessions/${encodeURIComponent(id)}`, fields)).session;
+  forkSession = async (id: string) =>
+    (await this.request<{ session: Session }>('POST', `/api/sessions/${encodeURIComponent(id)}/fork`, {})).session;
   deleteSession = (id: string) => this.request<{ deleted: boolean }>('DELETE', `/api/sessions/${encodeURIComponent(id)}`);
   getSession = async (id: string) =>
     (await this.request<{ session: Session }>('GET', `/api/sessions/${encodeURIComponent(id)}`)).session;
@@ -78,10 +97,18 @@ export class HermesClient {
     (await this.request<{ data: Message[] }>('GET', `/api/sessions/${encodeURIComponent(id)}/messages?limit=${limit}&order=latest`)).data;
 
   // --- runs (durable: the turn keeps going server-side when the phone disconnects) -----
-  startRun = (sessionId: string, input: string, idempotencyKey: string) =>
-    this.request<{ run_id: string; status: string }>('POST', '/v1/runs', { input, session_id: sessionId }, {
-      headers: { 'Idempotency-Key': idempotencyKey },
-    });
+  /** Text, or text + images. Verified shape for images: input=[{role:'user', content:[parts]}]. */
+  startRun = (sessionId: string, input: ChatInput, idempotencyKey: string, model?: ModelChoice | null) =>
+    this.request<{ run_id: string; status: string }>(
+      'POST',
+      '/v1/runs',
+      {
+        input: typeof input === 'string' ? input : [{ role: 'user', content: input }],
+        session_id: sessionId,
+        ...(model ? { model: model.model, provider: model.provider } : {}),
+      },
+      { headers: { 'Idempotency-Key': idempotencyKey }, timeoutMs: 60_000 },
+    );
   getRun = (runId: string) => this.request<RunStatus>('GET', `/v1/runs/${runId}`, undefined, { timeoutMs: 15_000 });
   stopRun = (runId: string) => this.request<{ status: string }>('POST', `/v1/runs/${runId}/stop`, {});
   steerRun = (runId: string, text: string) => this.request<unknown>('POST', `/v1/runs/${runId}/steer`, { text });
@@ -143,5 +170,8 @@ export class HermesClient {
 
   // --- scheduled jobs -----------------------------------------------------------------
   listJobs = async () => (await this.request<{ jobs: Job[] }>('GET', '/api/jobs')).jobs ?? [];
+  createJob = async (b: JobInput) => (await this.request<{ job: Job }>('POST', '/api/jobs', b)).job;
+  updateJob = async (id: string, b: JobInput) => (await this.request<{ job: Job }>('PATCH', `/api/jobs/${id}`, b)).job;
+  deleteJob = (id: string) => this.request<{ ok: boolean }>('DELETE', `/api/jobs/${id}`);
   jobAction = (id: string, action: 'pause' | 'resume' | 'run') => this.request<{ job: Job }>('POST', `/api/jobs/${id}/${action}`, {});
 }

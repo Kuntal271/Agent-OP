@@ -13,6 +13,8 @@ type Ctx = {
   client: HermesClient | null;
   connect: (c: Config) => Promise<void>;
   disconnect: () => Promise<void>;
+  /** False when the last health ping failed (server asleep, tailnet down, or phone offline). */
+  online: boolean;
   runs: RunMap;
   trackRun: (r: TrackedRun) => void;
   updateRun: (sessionId: string, patch: Partial<TrackedRun>) => void;
@@ -28,6 +30,7 @@ export function HermesProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [config, setConfig] = useState<Config | null>(null);
   const [runs, setRuns] = useState<RunMap>({});
+  const [online, setOnline] = useState(true);
   const runsRef = useRef<RunMap>({});
   const openRef = useRef<string | null>(null);
 
@@ -71,6 +74,28 @@ export function HermesProvider({ children }: { children: ReactNode }) {
     openRef.current = id;
   }, []);
 
+  // Connection monitor: cheap unauthenticated /health ping while the app is in the foreground.
+  useEffect(() => {
+    if (!client) return;
+    let active = AppState.currentState === 'active';
+    let gone = false;
+    const ping = () => {
+      if (!active) return;
+      client.health().then(() => !gone && setOnline(true)).catch(() => !gone && setOnline(false));
+    };
+    const sub = AppState.addEventListener('change', (st) => {
+      active = st === 'active';
+      if (active) ping();
+    });
+    const id = setInterval(ping, 15_000);
+    ping();
+    return () => {
+      gone = true;
+      clearInterval(id);
+      sub.remove();
+    };
+  }, [client]);
+
   // Poll runs that are still working (except the one the open chat is streaming).
   useEffect(() => {
     if (!client) return;
@@ -104,8 +129,8 @@ export function HermesProvider({ children }: { children: ReactNode }) {
   }, [client, updateRun]);
 
   const value = useMemo<Ctx>(
-    () => ({ ready, config, client, connect, disconnect, runs, trackRun, updateRun, forgetRun, setOpenSession }),
-    [ready, config, client, connect, disconnect, runs, trackRun, updateRun, forgetRun, setOpenSession],
+    () => ({ ready, config, client, connect, disconnect, online, runs, trackRun, updateRun, forgetRun, setOpenSession }),
+    [ready, config, client, connect, disconnect, online, runs, trackRun, updateRun, forgetRun, setOpenSession],
   );
   return <HermesContext.Provider value={value}>{children}</HermesContext.Provider>;
 }

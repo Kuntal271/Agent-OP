@@ -8,9 +8,16 @@ export type Session = {
   model?: string | null;
   started_at?: number | null;
   last_active?: number | null;
+  ended_at?: number | null;
   message_count?: number;
   tool_call_count?: number;
+  api_call_count?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_read_tokens?: number;
+  cache_write_tokens?: number;
   estimated_cost_usd?: number | null;
+  actual_cost_usd?: number | null;
   pinned?: boolean;
   archived?: boolean;
   hidden?: boolean;
@@ -75,6 +82,7 @@ export type RunEvent = {
   request_id?: string;
   prompt_id?: string;
   execution_generation?: number;
+  timeout_s?: number;
   [k: string]: unknown;
 };
 
@@ -82,15 +90,48 @@ export type Job = {
   id: string;
   name?: string;
   prompt?: string;
-  schedule?: unknown;
+  schedule?: { kind?: string; minutes?: number; expr?: string; display?: string } | string | null;
   schedule_display?: string;
   enabled?: boolean;
   state?: string;
+  deliver?: string | null;
+  model?: string | null;
+  provider?: string | null;
+  skills?: string[];
+  repeat?: { times?: number | null; completed?: number } | null;
   next_run_at?: string | number | null;
   last_run_at?: string | number | null;
   last_status?: string | null;
+  last_error?: string | null;
   [k: string]: unknown;
 };
+
+export type JobInput = {
+  name?: string;
+  prompt?: string;
+  schedule?: string;
+  deliver?: string;
+  enabled?: boolean;
+  skills?: string[];
+};
+
+export type Skill = { name: string; description?: string; category?: string; [k: string]: unknown };
+
+export type ModelProvider = { slug: string; name: string; is_current?: boolean; authenticated?: boolean; models: string[]; total_models?: number };
+export type ModelOptions = { model?: string; provider?: string; providers: ModelProvider[] };
+/** Per-run model override (verified: honored by POST /v1/runs, not by the session-level lock). */
+export type ModelChoice = { model: string; provider: string };
+
+export type HealthDetail = {
+  status: string;
+  version?: string;
+  gateway_state?: string;
+  readiness?: { status: string; checks?: Record<string, { status: string; [k: string]: unknown }> };
+  platforms?: Record<string, { state?: string; [k: string]: unknown }>;
+};
+
+export type ContentPart = { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } };
+export type ChatInput = string | ContentPart[];
 
 export const TERMINAL_RUN_STATES = ['completed', 'failed', 'cancelled', 'interrupted'] as const;
 export const isTerminal = (s?: string) => !!s && (TERMINAL_RUN_STATES as readonly string[]).includes(s);

@@ -1,75 +1,72 @@
 import { memo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { messageText, toolCallSummary, toolResultPreview } from '@/lib/format';
+import { messageImages, messageText, toolCallSummary, toolResultPreview } from '@/lib/format';
+import { haptic } from '@/lib/haptics';
 import type { Message } from '@/lib/types';
-import { mono, useTheme } from './theme';
-
-/** Plain text with ``` fenced blocks rendered monospace. Selectable so answers can be copied. */
-export function RichText({ text, color }: { text: string; color: string }) {
-  const t = useTheme();
-  const parts = text.split('```');
-  return (
-    <View style={{ gap: 6 }}>
-      {parts.map((part, i) => {
-        if (!part) return null;
-        if (i % 2 === 1) {
-          const body = part.replace(/^[\w+-]*\n/, ''); // drop the language tag line
-          return (
-            <View key={i} style={[styles.code, { backgroundColor: t.code }]}>
-              <Text selectable style={[mono, { color: t.text, fontSize: 12.5 }]}>{body.replace(/\n$/, '')}</Text>
-            </View>
-          );
-        }
-        return <Text key={i} selectable style={{ color, fontSize: 15, lineHeight: 21 }}>{part.trim()}</Text>;
-      })}
-    </View>
-  );
-}
+import { Markdown } from './Markdown';
+import { Icon } from './ui';
+import { mono, radius, useTheme } from './theme';
 
 function ToolResult({ m }: { m: Message }) {
   const t = useTheme();
   const [open, setOpen] = useState(false);
   const preview = toolResultPreview(m.content, open ? 4000 : 140);
   return (
-    <Pressable onPress={() => setOpen((o) => !o)} style={[styles.tool, { borderColor: t.border }]}>
-      <Text style={{ color: t.muted, fontSize: 12, fontWeight: '600' }}>↳ {m.tool_name ?? 'tool'} result {open ? '▴' : '▾'}</Text>
+    <Pressable onPress={() => { haptic.tap(); setOpen((o) => !o); }} accessibilityRole="button" accessibilityLabel={`${m.tool_name ?? 'tool'} result`}
+      style={[styles.tool, { borderColor: t.border }]}>
+      <View style={styles.toolHead}>
+        <Icon name="return-down-forward" size={13} color={t.muted} />
+        <Text style={{ color: t.muted, fontSize: 12, fontWeight: '600' }}>{m.tool_name ?? 'tool'} result</Text>
+        <Icon name={open ? 'chevron-up' : 'chevron-down'} size={13} color={t.muted} />
+      </View>
       {!!preview && <Text selectable style={[mono, { color: t.muted, fontSize: 12 }]} numberOfLines={open ? undefined : 2}>{preview}</Text>}
     </Pressable>
   );
 }
 
-export const MessageItem = memo(function MessageItem({ m }: { m: Message }) {
+type Props = { m: Message; onLongPress?: (m: Message, text: string) => void };
+
+export const MessageItem = memo(function MessageItem({ m, onLongPress }: Props) {
   const t = useTheme();
   if (m.role === 'tool') return <ToolResult m={m} />;
-  const text = messageText(m.content).trim();
+  const text = messageText(m.content).replace(/\n?\[image\]/g, '').trim();
+  const images = messageImages(m.content);
+  const press = () => { haptic.press(); onLongPress?.(m, text); };
+
   if (m.role === 'user') {
     return (
-      <View style={[styles.bubble, styles.user, { backgroundColor: t.userBubble }]}>
-        <Text selectable style={{ color: t.userText, fontSize: 15, lineHeight: 21 }}>{text}</Text>
-      </View>
+      <Pressable onLongPress={press} delayLongPress={350} style={[styles.bubble, styles.user, { backgroundColor: t.userBubble }]}>
+        {images.map((u, i) => <Image key={i} source={{ uri: u }} style={styles.inlineImg} accessibilityLabel="Attached image" />)}
+        {!!text && <Text selectable style={{ color: t.userText, fontSize: 15, lineHeight: 21 }}>{text}</Text>}
+      </Pressable>
     );
   }
+
   const calls = toolCallSummary(m);
   return (
     <View style={{ gap: 6, alignSelf: 'stretch' }}>
       {!!text && (
-        <View style={[styles.bubble, styles.bot, { backgroundColor: t.botBubble, borderColor: t.border }]}>
-          <RichText text={text} color={t.text} />
-        </View>
+        <Pressable onLongPress={press} delayLongPress={350} style={[styles.bubble, styles.bot, { backgroundColor: t.botBubble, borderColor: t.border }]}>
+          <Markdown>{text}</Markdown>
+        </Pressable>
       )}
       {calls.map((c, i) => (
-        <Text key={i} numberOfLines={2} style={[mono, styles.call, { color: t.muted }]}>⚙ {c}</Text>
+        <View key={i} style={styles.call}>
+          <Icon name="construct-outline" size={13} color={t.muted} />
+          <Text numberOfLines={2} style={[mono, { color: t.muted, fontSize: 12, flex: 1 }]}>{c}</Text>
+        </View>
       ))}
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  bubble: { borderRadius: 16, paddingHorizontal: 14, paddingVertical: 10, maxWidth: '92%' },
-  user: { alignSelf: 'flex-end', borderBottomRightRadius: 4 },
+  bubble: { borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 10, maxWidth: '94%' },
+  user: { alignSelf: 'flex-end', borderBottomRightRadius: 4, gap: 8 },
   bot: { alignSelf: 'flex-start', borderBottomLeftRadius: 4, borderWidth: StyleSheet.hairlineWidth },
-  code: { borderRadius: 8, padding: 10 },
+  inlineImg: { width: 200, height: 200, borderRadius: radius.md },
   tool: { borderLeftWidth: 2, paddingLeft: 10, paddingVertical: 2, gap: 2, marginLeft: 6 },
-  call: { fontSize: 12, marginLeft: 6 },
+  toolHead: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  call: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 6 },
 });

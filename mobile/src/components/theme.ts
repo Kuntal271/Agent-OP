@@ -1,16 +1,31 @@
 import { useColorScheme } from 'react-native';
 
+import { useSettings } from '@/state/SettingsContext';
+
 const light = {
-  bg: '#F6F7F9', card: '#FFFFFF', text: '#111827', muted: '#6B7280', border: '#E5E7EB',
-  accent: '#4F46E5', accentText: '#FFFFFF', userBubble: '#4F46E5', userText: '#FFFFFF',
-  botBubble: '#FFFFFF', code: '#F3F4F6', danger: '#DC2626', warn: '#D97706', ok: '#059669',
+  bg: '#F4F5FA', card: '#FFFFFF', surface: '#ECEEF6', text: '#0F172A', muted: '#64748B', border: '#E2E5EF',
+  accent: '#4F46E5', accentText: '#FFFFFF', accentSoft: '#E4E7FF',
+  userBubble: '#4F46E5', userText: '#FFFFFF', botBubble: '#FFFFFF',
+  code: '#F1F3F9', danger: '#DC2626', dangerSoft: '#FDE8E8', warn: '#B45309', warnSoft: '#FEF3C7',
+  ok: '#047857', okSoft: '#D9F5E8', overlay: 'rgba(15,23,42,0.5)',
 };
 const dark: typeof light = {
-  bg: '#0B0D12', card: '#151821', text: '#F3F4F6', muted: '#9CA3AF', border: '#262A36',
-  accent: '#818CF8', accentText: '#0B0D12', userBubble: '#4F46E5', userText: '#FFFFFF',
-  botBubble: '#151821', code: '#1E2230', danger: '#F87171', warn: '#FBBF24', ok: '#34D399',
+  bg: '#0A0C12', card: '#141824', surface: '#1B2030', text: '#F1F5F9', muted: '#94A3B8', border: '#262C3D',
+  accent: '#8B93FF', accentText: '#0A0C12', accentSoft: '#232859',
+  userBubble: '#4F46E5', userText: '#FFFFFF', botBubble: '#141824',
+  code: '#1B2030', danger: '#F87171', dangerSoft: '#3B1D22', warn: '#FBBF24', warnSoft: '#3A2D10',
+  ok: '#34D399', okSoft: '#12332A', overlay: 'rgba(0,0,0,0.65)',
 };
 
 export type Theme = typeof light;
-export const useTheme = (): Theme => (useColorScheme() === 'dark' ? dark : light);
+
+export function useIsDark(): boolean {
+  const system = useColorScheme();
+  const { settings } = useSettings();
+  return settings.themeMode === 'system' ? system === 'dark' : settings.themeMode === 'dark';
+}
+
+export const useTheme = (): Theme => (useIsDark() ? dark : light);
+
 export const mono = { fontFamily: 'monospace' as const };
+export const radius = { sm: 8, md: 12, lg: 16, xl: 24, pill: 999 };

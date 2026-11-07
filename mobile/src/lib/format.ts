@@ -66,3 +66,68 @@ export function visibleMessages(messages: Message[]): Message[] {
     return true;
   });
 }
+
+/** "global.anthropic.claude-sonnet-5-5" -> "Claude Sonnet 5.5"; "...haiku-4-5-20251001-v1:0" -> "Claude Haiku 4.5". */
+export function prettyModel(id?: string | null): string {
+  if (!id) return 'Default';
+  let s = id.split('/').pop() ?? id;
+  s = s.replace(/^(global|us|eu|apac)\./, '').replace(/^(anthropic|amazon|meta|mistral|cohere|deepseek|openai|google|qwen)\./, '');
+  s = s.replace(/-v\d+:\d+$/, '').replace(/-\d{8}$/, '');
+  const words: string[] = [];
+  for (const tok of s.split(/[-_.]/)) {
+    if (!tok) continue;
+    const prev = words[words.length - 1];
+    if (/^\d+$/.test(tok) && prev && /^\d+(\.\d+)*$/.test(prev)) words[words.length - 1] = `${prev}.${tok}`;
+    else words.push(/^\d+$/.test(tok) ? tok : tok.charAt(0).toUpperCase() + tok.slice(1));
+  }
+  return words.join(' ');
+}
+
+export const compactNumber = (n?: number | null): string => {
+  const v = n ?? 0;
+  if (v >= 1e9) return `${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `${(v / 1e3).toFixed(v >= 1e4 ? 0 : 1)}k`;
+  return String(Math.round(v));
+};
+
+export const money = (n?: number | null): string => (n && n > 0 ? `$${n < 1 ? n.toFixed(3) : n.toFixed(2)}` : '—');
+
+export type SessionGroup = { title: string; data: Session[] };
+
+/** Pinned first, then by recency buckets. `attention` ids (running / needs you) are lifted into their own group. */
+export function groupSessions(sessions: Session[], attention: Set<string>, now = Date.now()): SessionGroup[] {
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const day = 86_400_000;
+  const t0 = startOfToday.getTime();
+  const buckets: Record<string, Session[]> = { Attention: [], Pinned: [], Today: [], Yesterday: [], 'This week': [], Earlier: [] };
+  const last = (s: Session) => (s.last_active ?? s.started_at ?? 0) * 1000;
+  for (const s of [...sessions].sort((a, b) => last(b) - last(a))) {
+    const t = last(s);
+    if (attention.has(s.id)) buckets.Attention.push(s);
+    else if (s.pinned) buckets.Pinned.push(s);
+    else if (t >= t0) buckets.Today.push(s);
+    else if (t >= t0 - day) buckets.Yesterday.push(s);
+    else if (t >= t0 - 6 * day) buckets['This week'].push(s);
+    else buckets.Earlier.push(s);
+  }
+  const titles: Record<string, string> = { Attention: 'Needs you · Running' };
+  return Object.entries(buckets)
+    .filter(([, data]) => data.length)
+    .map(([k, data]) => ({ title: titles[k] ?? k, data }));
+}
+
+export const sourceLabel = (source?: string): string | null => {
+  if (!source || source === 'api_server') return null;
+  const map: Record<string, string> = { cron: 'Routine', cli: 'Terminal', tui: 'Terminal', desktop: 'Desktop', telegram: 'Telegram', discord: 'Discord', slack: 'Slack' };
+  return map[source] ?? source;
+};
+
+/** Text of a message plus any inline images (data URLs) from OpenAI-style content parts. */
+export function messageImages(content: unknown): string[] {
+  if (!Array.isArray(content)) return [];
+  return content
+    .map((p: any) => (p?.type === 'image_url' ? p.image_url?.url ?? p.image_url : null))
+    .filter((u): u is string => typeof u === 'string' && u.startsWith('data:image'));
+}

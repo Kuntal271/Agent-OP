@@ -402,7 +402,7 @@ def probe() -> int:
     import pathlib
     here = pathlib.Path(__file__).parent
     name = sys.argv[2] if len(sys.argv) > 2 else "protocol_probe.py"
-    files = {n: (here / n).read_bytes() for n in {"protocol_probe.py", name}}  # helpers + the probe itself
+    files = {n: (here / n).read_bytes() for n in {"protocol_probe.py", "features_probe.py", name}}  # helpers + the probe itself
     sb = _ts_sandbox(_app(), extra="--outbound-http-proxy-listen=127.0.0.1:1055", serve_http=False,
                      secret_names=(TS_SECRET, "kuntal-hermes-api"))
     try:

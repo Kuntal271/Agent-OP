@@ -32,7 +32,10 @@
       "expo-router",
       "expo-status-bar",
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-background-task",
+      "expo-speech-recognition",
+      "expo-font"
     ]
   }
 }
